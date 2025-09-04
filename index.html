@@ -1,228 +1,150 @@
-<!DOCTYPE html>
-<html lang="pt-br">
+<!doctype html>
+<html lang="pt">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Controle de Robô Bluetooth</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f4f8;
-            color: #1a202c;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 1rem;
-        }
-        .container {
-            background-color: #ffffff;
-            border-radius: 1.5rem;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            padding: 2.5rem;
-            width: 100%;
-            max-width: 480px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .control-buttons {
-            display: grid;
-            grid-template-areas:
-                ". up ."
-                "left . right"
-                ". down .";
-            gap: 1.5rem;
-            margin-top: 2rem;
-            margin-bottom: 2rem;
-        }
-        .btn {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background-color: #e2e8f0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 2.5rem;
-            color: #4a5568;
-            transition: all 0.2s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-            user-select: none;
-            cursor: pointer;
-        }
-        .btn:active {
-            transform: scale(0.95);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) inset;
-            background-color: #cbd5e0;
-        }
-        .btn-up { grid-area: up; }
-        .btn-down { grid-area: down; }
-        .btn-left { grid-area: left; }
-        .btn-right { grid-area: right; }
-        .btn-stop {
-            width: 120px;
-            height: 120px;
-            font-size: 2rem;
-            border-radius: 50%;
-            background-color: #f56565;
-            color: white;
-            transition: all 0.2s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-        }
-        .btn-stop:active {
-            transform: scale(0.95);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) inset;
-            background-color: #c53030;
-        }
-        .connect-btn {
-            background-color: #4c51bf;
-            color: white;
-            font-weight: bold;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.75rem;
-            transition: background-color 0.2s;
-        }
-        .connect-btn:hover {
-            background-color: #434190;
-        }
-        .status-message {
-            margin-top: 1rem;
-            font-size: 0.875rem;
-            color: #4a5568;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Controle BLE - CC2540 (HM-10)</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial;padding:18px;max-width:600px;margin:auto;}
+    h1{font-size:20px;margin-bottom:6px;}
+    .row{display:flex;gap:8px;margin:8px 0;}
+    button{flex:1;padding:12px;font-size:16px;border-radius:8px;border:1px solid #ccc;background:#f5f5f5;cursor:pointer;}
+    #status{margin-top:10px;color:#333;}
+    input[type="text"]{width:100%;padding:8px;border-radius:6px;border:1px solid #ccc;}
+    small{color:#666}
+  </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="container">
-        <h1 class="text-3xl font-bold mb-2 text-gray-800">Controle do Robô</h1>
-        <p class="text-gray-600 mb-6">Use os botões para mover o seu robô</p>
+<body>
+  <h1>Controle BLE para CC2540 / HM-10</h1>
+  <p>Conecte ao módulo BLE e envie comandos simples para controlar os servos.</p>
 
-        <button id="connectButton" class="connect-btn">Conectar</button>
-        <div id="status" class="status-message">Desconectado</div>
+  <label>Service UUID (padrão HM-10 / CC2540):</label>
+  <input id="serviceUuid" type="text" value="0000ffe0-0000-1000-8000-00805f9b34fb" />
 
-        <div class="control-buttons">
-            <button id="up" class="btn btn-up">▲</button>
-            <button id="left" class="btn btn-left">◄</button>
-            <button id="right" class="btn btn-right">►</button>
-            <button id="down" class="btn btn-down">▼</button>
-        </div>
-        
-        <button id="stop" class="btn-stop">PARAR</button>
-    </div>
+  <label>Characteristic UUID (padrão HM-10 / CC2540):</label>
+  <input id="charUuid" type="text" value="0000ffe1-0000-1000-8000-00805f9b34fb" />
 
-    <script>
-        // O nome do dispositivo não é mais usado para a busca, mas você pode
-        // usá-lo para exibir uma mensagem para o usuário.
-        const deviceName = 'BT05'; 
+  <div class="row" style="margin-top:12px;">
+    <button id="btnConnect">Conectar</button>
+    <button id="btnDisconnect" disabled>Desconectar</button>
+  </div>
 
-        // Coloque aqui o UUID do serviço que você encontrou no nRF Connect.
-        const serviceUuid = '0000ffe0-0000-1000-8000-00805f9b34fb';
+  <div class="row">
+    <button data-cmd="F">Frente (F)</button>
+    <button data-cmd="B">Trás (B)</button>
+  </div>
+  <div class="row">
+    <button data-cmd="L">Esquerda (L)</button>
+    <button data-cmd="R">Direita (R)</button>
+  </div>
+  <div class="row">
+    <button data-cmd="S">Parar (S)</button>
+    <button id="btnCustom">Enviar texto</button>
+  </div>
 
-        // Coloque aqui o UUID da característica de 'Write' que você encontrou.
-        const characteristicUuid = '0000ffe1-0000-1000-8000-00805f9b34fb';
+  <input id="customText" type="text" placeholder="Texto personalizado (será enviado como ASCII)" />
+  <p id="status"><small>Status: desconectado</small></p>
 
-        let bluetoothDevice;
-        let controlCharacteristic;
+<script>
+let device = null;
+let server = null;
+let txChar = null; // característica para escrever
 
-        const connectButton = document.getElementById('connectButton');
-        const statusElement = document.getElementById('status');
-        const controlButtons = {
-            up: document.getElementById('up'),
-            down: document.getElementById('down'),
-            left: document.getElementById('left'),
-            right: document.getElementById('right'),
-            stop: document.getElementById('stop')
-        };
+const btnConnect = document.getElementById('btnConnect');
+const btnDisconnect = document.getElementById('btnDisconnect');
+const status = document.getElementById('status');
+const serviceInput = document.getElementById('serviceUuid');
+const charInput = document.getElementById('charUuid');
 
-        connectButton.addEventListener('click', connectToDevice);
+function log(s){
+  status.innerHTML = '<small>Status: ' + s + '</small>';
+  console.log(s);
+}
 
-        function log(message) {
-            statusElement.textContent = message;
-            console.log(message);
-        }
+async function connectBLE(){
+  try{
+    const serviceUuid = serviceInput.value.trim();
+    // solicitar dispositivo (filtra por serviços se informado)
+    const options = {
+      acceptAllDevices: false,
+      optionalServices: [serviceUuid]
+    };
+    // Navegadores permitem também usar filters: [{namePrefix:'HM'}, ...]
+    const deviceRequest = await navigator.bluetooth.requestDevice({
+      // Tentar filtrar por nome comum (opcional); aqui deixamos aberto e usamos optionalServices
+      //filters: [{services: [serviceUuid]}],
+      optionalServices: [serviceUuid],
+      acceptAllDevices: true
+    });
 
-        async function connectToDevice() {
-            try {
-                log('Procurando dispositivos...');
-                bluetoothDevice = await navigator.bluetooth.requestDevice({
-                    // Removemos o filtro de nome. Agora, o navegador irá
-                    // exibir todos os dispositivos próximos.
-                    acceptAllDevices: true,
-                    optionalServices: [serviceUuid]
-                });
-                
-                log('Conectando ao GATT...');
-                const server = await bluetoothDevice.gatt.connect();
+    device = deviceRequest;
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+    log('Conectando a ' + (device.name || device.id) + ' ...');
 
-                log('Buscando o serviço...');
-                const service = await server.getPrimaryService(serviceUuid);
+    server = await device.gatt.connect();
+    const service = await server.getPrimaryService(serviceUuid);
+    const char = await service.getCharacteristic(charInput.value.trim());
 
-                log('Buscando a característica...');
-                controlCharacteristic = await service.getCharacteristic(characteristicUuid);
+    txChar = char;
+    btnDisconnect.disabled = false;
+    btnConnect.disabled = true;
+    log('Conectado a ' + (device.name || device.id));
+  } catch (err) {
+    console.error(err);
+    log('Erro: ' + (err.message || err));
+  }
+}
 
-                log('Conectado com sucesso!');
-                connectButton.textContent = 'Conectado';
-                connectButton.disabled = true;
+function onDisconnected(){
+  log('Desconectado');
+  btnConnect.disabled = false;
+  btnDisconnect.disabled = true;
+  txChar = null;
+  device = null;
+}
 
-                // Listen for disconnection
-                bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+async function disconnectBLE(){
+  if (device && device.gatt.connected) {
+    device.gatt.disconnect();
+    onDisconnected();
+  }
+}
 
-            } catch (error) {
-                log(`Falha na conexão: ${error.message}`);
-                console.error(error);
-            }
-        }
+async function sendCommand(cmd){
+  if (!txChar) return log('Não conectado ou característica inválida.');
+  try{
+    // cmd: string -> enviar em ASCII
+    const encoder = new TextEncoder();
+    const data = encoder.encode(cmd);
+    await txChar.writeValue(data);
+    log('Enviado: ' + cmd);
+  } catch(err) {
+    console.error(err);
+    log('Erro ao enviar: ' + (err.message || err));
+  }
+}
 
-        function onDisconnected() {
-            log('Desconectado. Tente conectar novamente.');
-            connectButton.textContent = 'Conectar';
-            connectButton.disabled = false;
-        }
+// botões
+btnConnect.addEventListener('click', connectBLE);
+btnDisconnect.addEventListener('click', disconnectBLE);
 
-        function sendCommand(command) {
-            if (controlCharacteristic) {
-                const encoder = new TextEncoder('utf-8');
-                const encodedCommand = encoder.encode(command);
-                controlCharacteristic.writeValue(encodedCommand)
-                    .then(() => console.log(`Comando enviado: ${command}`))
-                    .catch(error => console.error(`Erro ao enviar comando: ${error}`));
-            } else {
-                log('Não conectado. Pressione "Conectar" primeiro.');
-            }
-        }
+document.querySelectorAll('button[data-cmd]').forEach(b => {
+  b.addEventListener('click', () => {
+    const c = b.getAttribute('data-cmd');
+    sendCommand(c);
+  });
+});
 
-        function setupButtonListeners() {
-            // Mouse/Touch events for continuous commands
-            Object.keys(controlButtons).forEach(key => {
-                const btn = controlButtons[key];
-                const command = getCommandChar(key);
-                
-                btn.addEventListener('mousedown', () => sendCommand(command));
-                btn.addEventListener('mouseup', () => sendCommand('S'));
-                btn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    sendCommand(command);
-                });
-                btn.addEventListener('touchend', () => sendCommand('S'));
-            });
-        }
+document.getElementById('btnCustom').addEventListener('click', () => {
+  const t = document.getElementById('customText').value || '';
+  if (t.length === 0) return log('Digite algo no campo de texto.');
+  sendCommand(t);
+});
 
-        function getCommandChar(buttonName) {
-            switch (buttonName) {
-                case 'up': return 'F';
-                case 'down': return 'B';
-                case 'left': return 'L';
-                case 'right': return 'R';
-                case 'stop': return 'S';
-                default: return 'S';
-            }
-        }
-
-        setupButtonListeners();
-    </script>
+// Detectar se Web Bluetooth está disponível
+if (!navigator.bluetooth) {
+  log('Web Bluetooth API não disponível neste navegador. Tente Chrome/Edge em Android/desktop.');
+}
+</script>
 </body>
 </html>
