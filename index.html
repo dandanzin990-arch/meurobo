@@ -151,6 +151,7 @@
                 bluetoothDevice = await navigator.bluetooth.requestDevice({
                     // Removemos o filtro de nome. Agora, o navegador irá
                     // exibir todos os dispositivos próximos.
+                    acceptAllDevices: true,
                     optionalServices: [serviceUuid]
                 });
                 
