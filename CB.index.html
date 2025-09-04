@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Robô Bluetooth</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            color: #1a202c;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 480px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .control-buttons {
+            display: grid;
+            grid-template-areas:
+                ". up ."
+                "left . right"
+                ". down .";
+            gap: 1.5rem;
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+        }
+        .btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: #e2e8f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5rem;
+            color: #4a5568;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+            user-select: none;
+            cursor: pointer;
+        }
+        .btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) inset;
+            background-color: #cbd5e0;
+        }
+        .btn-up { grid-area: up; }
+        .btn-down { grid-area: down; }
+        .btn-left { grid-area: left; }
+        .btn-right { grid-area: right; }
+        .btn-stop {
+            width: 120px;
+            height: 120px;
+            font-size: 2rem;
+            border-radius: 50%;
+            background-color: #f56565;
+            color: white;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        .btn-stop:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) inset;
+            background-color: #c53030;
+        }
+        .connect-btn {
+            background-color: #4c51bf;
+            color: white;
+            font-weight: bold;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            transition: background-color 0.2s;
+        }
+        .connect-btn:hover {
+            background-color: #434190;
+        }
+        .status-message {
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: #4a5568;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="container">
+        <h1 class="text-3xl font-bold mb-2 text-gray-800">Controle do Robô</h1>
+        <p class="text-gray-600 mb-6">Use os botões para mover o seu robô</p>
+
+        <button id="connectButton" class="connect-btn">Conectar</button>
+        <div id="status" class="status-message">Desconectado</div>
+
+        <div class="control-buttons">
+            <button id="up" class="btn btn-up">▲</button>
+            <button id="left" class="btn btn-left">◄</button>
+            <button id="right" class="btn btn-right">►</button>
+            <button id="down" class="btn btn-down">▼</button>
+        </div>
+        
+        <button id="stop" class="btn-stop">PARAR</button>
+    </div>
+
+    <script>
+        // Use o nome do seu módulo Bluetooth. Ex: 'HMSoft'.
+        const deviceName = 'Sua-Placa'; 
+
+        // Coloque aqui o UUID do serviço que você encontrou no nRF Connect.
+        const serviceUuid = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+
+        // Coloque aqui o UUID da característica de 'Write' que você encontrou.
+        const characteristicUuid = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+
+        let bluetoothDevice;
+        let controlCharacteristic;
+
+        const connectButton = document.getElementById('connectButton');
+        const statusElement = document.getElementById('status');
+        const controlButtons = {
+            up: document.getElementById('up'),
+            down: document.getElementById('down'),
+            left: document.getElementById('left'),
+            right: document.getElementById('right'),
+            stop: document.getElementById('stop')
+        };
+
+        connectButton.addEventListener('click', connectToDevice);
+
+        function log(message) {
+            statusElement.textContent = message;
+            console.log(message);
+        }
+
+        async function connectToDevice() {
+            try {
+                log('Procurando dispositivos...');
+                bluetoothDevice = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { name: deviceName },
+                        { services: [serviceUuid] }
+                    ],
+                    optionalServices: [serviceUuid]
+                });
+
+                log('Conectando ao GATT...');
+                const server = await bluetoothDevice.gatt.connect();
+
+                log('Buscando o serviço...');
+                const service = await server.getPrimaryService(serviceUuid);
+
+                log('Buscando a característica...');
+                controlCharacteristic = await service.getCharacteristic(characteristicUuid);
+
+                log('Conectado com sucesso!');
+                connectButton.textContent = 'Conectado';
+                connectButton.disabled = true;
+
+                // Listen for disconnection
+                bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+
+            } catch (error) {
+                log(`Falha na conexão: ${error.message}`);
+                console.error(error);
+            }
+        }
+
+        function onDisconnected() {
+            log('Desconectado. Tente conectar novamente.');
+            connectButton.textContent = 'Conectar';
+            connectButton.disabled = false;
+        }
+
+        function sendCommand(command) {
+            if (controlCharacteristic) {
+                const encoder = new TextEncoder('utf-8');
+                const encodedCommand = encoder.encode(command);
+                controlCharacteristic.writeValue(encodedCommand)
+                    .then(() => console.log(`Comando enviado: ${command}`))
+                    .catch(error => console.error(`Erro ao enviar comando: ${error}`));
+            } else {
+                log('Não conectado. Pressione "Conectar" primeiro.');
+            }
+        }
+
+        function setupButtonListeners() {
+            // Mouse/Touch events for continuous commands
+            Object.keys(controlButtons).forEach(key => {
+                const btn = controlButtons[key];
+                const command = getCommandChar(key);
+                
+                btn.addEventListener('mousedown', () => sendCommand(command));
+                btn.addEventListener('mouseup', () => sendCommand('S'));
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    sendCommand(command);
+                });
+                btn.addEventListener('touchend', () => sendCommand('S'));
+            });
+        }
+
+        function getCommandChar(buttonName) {
+            switch (buttonName) {
+                case 'up': return 'F';
+                case 'down': return 'B';
+                case 'left': return 'L';
+                case 'right': return 'R';
+                case 'stop': return 'S';
+                default: return 'S';
+            }
+        }
+
+        setupButtonListeners();
+    </script>
+</body>
+</html>
