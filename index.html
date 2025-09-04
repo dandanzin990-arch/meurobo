@@ -115,14 +115,15 @@
     </div>
 
     <script>
-        // Use o nome do seu módulo Bluetooth. Ex: 'HMSoft'.
-        const deviceName = 'Sua-Placa'; 
+        // O nome do dispositivo não é mais usado para a busca, mas você pode
+        // usá-lo para exibir uma mensagem para o usuário.
+        const deviceName = 'BT05'; 
 
         // Coloque aqui o UUID do serviço que você encontrou no nRF Connect.
-        const serviceUuid = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+        const serviceUuid = '0000ffe0-0000-1000-8000-00805f9b34fb';
 
         // Coloque aqui o UUID da característica de 'Write' que você encontrou.
-        const characteristicUuid = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+        const characteristicUuid = '0000ffe1-0000-1000-8000-00805f9b34fb';
 
         let bluetoothDevice;
         let controlCharacteristic;
@@ -148,13 +149,11 @@
             try {
                 log('Procurando dispositivos...');
                 bluetoothDevice = await navigator.bluetooth.requestDevice({
-                    filters: [
-                        { name: deviceName },
-                        { services: [serviceUuid] }
-                    ],
+                    // Removemos o filtro de nome. Agora, o navegador irá
+                    // exibir todos os dispositivos próximos.
                     optionalServices: [serviceUuid]
                 });
-
+                
                 log('Conectando ao GATT...');
                 const server = await bluetoothDevice.gatt.connect();
 
